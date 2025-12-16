@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Archaeology Game HTML Edition</title>
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100%;
+  background:rgb(75,50,50);
+  overflow:hidden;
+  cursor:auto;
+}
+#app{
+  width:100%;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+}
+#viewport{
+  position:relative;
+  width:96vw;
+  height:86vh;
+  max-width:1400px;
+  border-radius:28px;
+  overflow:hidden;
+background:radial-gradient(circle at center,
+  rgb(250,225,164) 40%,
+  rgb(153,102,0) 100%
+);
+  user-select:none;-webkit-user-select:none;
+}
+#mainImage{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  user-select:none;
+  pointer-events:none;
+}
+<!-- .sprite{
+  position:absolute;
+  width:128px;
+  height:128px;
+  cursor:url("./assets/brush.png"),auto;
+  will-change:transform,opacity;
+} -->
+#controls{
+  margin-top:14px;
+  position:relative;
+  width:96vw;
+  max-width:1400px;
+  display:flex;
+  justify-content:center;
+}
+#tnt{
+  width:64px;
+  height:64px;
+  background:#c00;
+  color:#fff;
+  font-size:30px;
+  border:none;
+  border-radius:6px;
+}
+#random{
+  position:absolute;
+  right:0;
+  top:-76px;
+  width:48px;
+  height:48px;
+  background:#fff;
+  border:none;
+  border-radius:6px;
+  font-size:24px;
+}
+@keyframes dropBounce{
+  0%{transform:translateY(0)}
+  60%{transform:translateY(120px)}
+  75%{transform:translateY(80px)}
+  90%{transform:translateY(140px)}
+  100%{transform:translateY(220px);opacity:0}
+}
+@keyframes blastUp{
+  0%{transform:translateY(0)}
+  100%{transform:translateY(-80px)}
+}
+@keyframes blastDown{
+  0%{transform:translate(0,0)}
+  100%{transform:translate(var(--dx),var(--dy));opacity:0}
+}
+#brush{
+  position:fixed;
+  width:100px;height:100px;
+  pointer-events:none;
+  background:url("./assets/brush.png") center/contain no-repeat;
+  transform-origin:100% 90%;
+  display:none;
+}
+.hideCursor #brush{display:block}
+@keyframes wiggle{
+  0%{transform:translate(-50%,-50%) rotate(0deg)}
+  25%{transform:translate(-50%,-50%) rotate(-12deg)}
+  50%{transform:translate(-50%,-50%) rotate(12deg)}
+  75%{transform:translate(-50%,-50%) rotate(-8deg)}
+  100%{transform:translate(-50%,-50%) rotate(0deg)}
+}
+.wiggle{animation:wiggle 0.25s linear}
+#splash{
+  position:fixed;inset:0;
+  background:#000c;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+}
+#splash img{max-width:80vw;max-height:70vh}
+#splashTitle{
+  margin-top:16px;
+  color:rgb(153,102,0);
+  font-size:64px;
+  font-family:arial;
+}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <img id="splashImg">
+  <div id="splashTitle">Archaeology Game HTML Edition</div>
+</div>
+<audio id="start" src="./assets/start.wav"></audio>
+
+<div id="app">
+  <div id="viewport">
+    <img id="mainImage">
+  </div>
+  <div id="controls">
+    <button id="tnt">🧨</button>
+    <button id="random">🎲</button>
+  </div>
+</div>
+
+<div id="brush"></div>
+
+<audio id="explosion" src="./assets/explosion.wav" preload="auto"></audio>
+
+<script>
+const viewport=document.getElementById("viewport");
+const mainImage=document.getElementById("mainImage");
+const tnt=document.getElementById("tnt");
+const randomBtn=document.getElementById("random");
+const explosion=document.getElementById("explosion");
+
+const splash=document.getElementById("splash");
+const splashImg=document.getElementById("splashImg");
+const start=document.getElementById("start");
+
+let splashState=0;
+splashImg.src="./assets/splash.png";
+
+splash.addEventListener("pointerdown",()=>{
+  if(splashState===0){
+    splashImg.src="./assets/instructions.png";
+    splashState=1;
+  }else{
+    splash.remove();
+    start.play();
+  }
+});
+
+const IMAGES=[
+  "./images/1.png",
+  "./images/2.png",
+  "./images/3.png",
+  "./images/4.png",
+  "./images/5.png",
+  "./images/6.png",
+  "./images/7.png",
+  "./images/8.png",
+  "./images/9.png",
+  "./images/10.png",
+  "./images/11.png",
+  "./images/12.png",
+];
+
+const SPRITES=["./assets/sand.png","./assets/dust.png"];
+let sprites=[];
+
+function rand(a,b){return Math.random()*(b-a)+a}
+
+function loadMainImage(){
+  mainImage.src=IMAGES[Math.floor(Math.random()*IMAGES.length)];
+}
+
+function clearSprites(){
+  sprites.forEach(s=>s.remove());
+  sprites=[];
+}
+
+function spawnSprites(count=600){
+  const rect=viewport.getBoundingClientRect();
+  for(let i=0;i<count;i++){
+    const s=document.createElement("img");
+    s.src=SPRITES[Math.floor(Math.random()*SPRITES.length)];
+    s.className="sprite";
+    s.style.left=rand(-128,rect.width+128)+"px";
+    s.style.top=rand(-128,rect.height+128)+"px";
+    s.addEventListener("pointerdown",()=>dropSprite(s));
+    viewport.appendChild(s);
+    sprites.push(s);
+  }
+}
+
+function dropSprite(s){
+  s.style.animation="dropBounce 0.8s ease-out forwards";
+  s.addEventListener("animationend",()=>s.remove(),{once:true});
+}
+
+function blastAll(){
+  explosion.currentTime=0;
+  explosion.play();
+  sprites.forEach(s=>{
+    s.style.animation="blastUp 0.15s ease-out forwards";
+    s.addEventListener("animationend",()=>{
+      s.style.setProperty("--dx",rand(-200,200)+"px");
+      s.style.setProperty("--dy",rand(200,420)+"px");
+      s.style.animation="blastDown 0.6s ease-in forwards";
+      s.addEventListener("animationend",()=>s.remove(),{once:true});
+    },{once:true});
+  });
+  sprites=[];
+}
+
+function reset(){
+  clearSprites();
+  loadMainImage();
+  spawnSprites();
+}
+
+const brush=document.getElementById("brush");
+
+document.addEventListener("pointermove",e=>{
+  brush.style.left=e.clientX+"px";
+  brush.style.top=e.clientY+"px";
+});
+
+const pscht=new Audio("./assets/pscht.wav");
+
+viewport.addEventListener("pointerdown",e=>{
+  if(!e.target.classList.contains("sprite")) return;
+
+  pscht.currentTime=0;
+  pscht.play();
+
+  brush.classList.remove("wiggle");
+  void brush.offsetWidth;
+  brush.classList.add("wiggle");
+});
+
+
+viewport.addEventListener("pointerover",e=>{
+  if(e.target.classList.contains("sprite"))
+    document.body.classList.add("hideCursor");
+});
+viewport.addEventListener("pointerout",e=>{
+  if(e.target.classList.contains("sprite"))
+    document.body.classList.remove("hideCursor");
+});
+
+
+tnt.addEventListener("click",blastAll);
+randomBtn.addEventListener("click",reset);
+
+reset();
+</script>
+</body>
+</html>
